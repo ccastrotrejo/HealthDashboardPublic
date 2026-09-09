@@ -1,0 +1,153 @@
+name: AI generate
+
+# Reusable workflow shared by every AI task.
+#
+# Replaces eight near-identical copies of checkout → pnpm → node → install →
+# generate → rebase-retry-push. The push retry logic in particular now lives in
+# exactly one place instead of being duplicated per task file.
+
+on:
+  workflow_call:
+    inputs:
+      task:
+        description: 'Task name passed to `pnpm ai <task>`'
+        required: true
+        type: string
+      commit_message:
+        required: true
+        type: string
+      for_date:
+        description: 'Override the target date (yyyy-mm-dd), for backfills'
+        required: false
+        type: string
+        default: ''
+      strict:
+        description: 'Fail the run when the task degrades to its deterministic template'
+        required: false
+        type: boolean
+        default: true
+    # Declared explicitly rather than taking `secrets: inherit`. Inherit hands a
+    # reusable workflow EVERY repo secret, including the vendor OAuth material
+    # and GH_PAT that these jobs have no reason to hold.
+    secrets:
+      LLM_API_KEY:
+        required: false
+      OPENAI_API_KEY:
+        required: false
+
+permissions:
+  contents: write
+  # Bills Copilot CLI inference to this repository owner's Copilot seat. GitHub Models, which the
+  # `models: read` permission used to unlock, was retired on 2026-07-30 and now returns HTTP 410.
+  copilot-requests: write
+
+jobs:
+  generate:
+    if: ${{ github.event.repository.private == true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6.0.10
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+
+      # Not pinned. There is no lockfile for a global install, and the
+      # GITHUB_TOKEN auth path below requires a recent CLI — an old pinned
+      # version would fail to authenticate rather than degrade gracefully.
+      - name: Install Copilot CLI
+        run: npm install -g @github/copilot
+
+      # Rebuild the derived snapshot from the raw vendor JSON already in the repo.
+      #
+      # This deliberately does NOT hold vendor credentials. `pnpm sync` rotates
+      # WHOOP_REFRESH_TOKEN on every call, and running it from six workflows in a
+      # concurrency group disjoint from `daily-sync` would race that rotation —
+      # the exact failure MAINTENANCE.md documents as the most common in the
+      # system. It would also put GH_PAT, which can rewrite repo secrets, into
+      # seven jobs a day instead of one.
+      #
+      # Freshness comes from two other places instead: every schedule now sits
+      # after a sync slot, and `assessFreshness` marks the artifact `dataStale`
+      # (and the UI badges it) whenever the snapshot is older than the task's
+      # budget. RECOMPUTE preserves `syncedAt`, so it cannot mask that.
+      - name: Rebuild derived data
+        env:
+          RECOMPUTE: '1'
+        run: pnpm sync || echo "::warning::recompute failed — continuing with the committed snapshot"
+
+      - name: Generate ${{ inputs.task }}
+        env:
+          # Inference runs through the Copilot CLI and bills to this repository owner's Copilot
+          # seat, so no third-party key is needed. In a personally-owned repo the built-in
+          # GITHUB_TOKEN is enough, given `copilot-requests: write` above.
+          #
+          # PREREQUISITE: this sends sleep, HRV, resting heart rate and injury data through
+          # Copilot. Since 2026-04-24 GitHub may train on Copilot Free/Pro/Pro+/Max interactions
+          # unless you opt out at https://github.com/settings/copilot. Do that before enabling.
+          #
+          # Set LLM_API_KEY (+ LLM_BASE_URL) as repo secrets to override with any OpenAI-compatible
+          # provider; that path keeps decoder-enforced `json_schema`, which the CLI cannot do.
+          LLM_PROVIDER: copilot-cli
+          COPILOT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          LLM_BASE_URL: ${{ vars.LLM_BASE_URL }}
+          # With copilot-cli this must be a Copilot model name (e.g. gpt-5-mini); unset defaults to it.
+          LLM_MODEL: ${{ vars.LLM_MODEL }}
+          LLM_MODEL_MONTHLY_PATTERNS: ${{ vars.LLM_MODEL_MONTHLY_PATTERNS }}
+          USER_TIMEZONE: ${{ vars.USER_TIMEZONE }}
+          FOR_DATE: ${{ inputs.for_date }}
+          # Passed as env rather than interpolated into the shell line. Every
+          # caller currently supplies a literal, but wiring `task` to a
+          # workflow_dispatch input later would otherwise turn this into command
+          # injection with no other change required.
+          TASK: ${{ inputs.task }}
+          STRICT: ${{ inputs.strict && '--strict' || '' }}
+        run: pnpm ai "$TASK" $STRICT
+
+      - name: Commit if changed
+        # Runs even when generation failed strict-mode: the template artifact is
+        # still the current state, and dropping it would leave the dashboard
+        # showing something older with no indication anything went wrong.
+        if: ${{ always() && github.event.repository.private == true }}
+        env:
+          MESSAGE: ${{ inputs.commit_message }}
+          # The branch this run was dispatched against. Hardcoding `main` here
+          # meant a run triggered on any other ref would rebase that branch onto
+          # main and then fail to push it back — so a workflow_dispatch used to
+          # test a change could neither publish its artifact nor, had the push
+          # succeeded, avoid rewriting the branch onto main.
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Covers the AI artifact, the refreshed snapshot, and ai-history.jsonl.
+          git add -f -A private/data/
+          if git diff --cached --quiet; then
+            echo "No changes."
+            exit 0
+          fi
+          git commit -m "$MESSAGE"
+
+          pushed=false
+          for i in 1 2 3 4 5; do
+            git fetch origin "$BRANCH"
+            # -X theirs keeps this run's freshly generated artifact when a
+            # concurrent data commit touched the same file.
+            if git rebase --autostash -X theirs "origin/$BRANCH" && git push origin "HEAD:$BRANCH"; then
+              pushed=true; break
+            fi
+            git rebase --abort 2>/dev/null || true
+            echo "Push attempt $i failed, retrying…" && sleep 5
+          done
+          [ "$pushed" = true ] || { echo "Push failed after retries" >&2; exit 1; }

@@ -1,0 +1,6 @@
+allowBuilds:
+  esbuild: false
+  # Astryx ships postinstall scripts that only print an `astryx init` nudge —
+  # nothing needs building, so keep them blocked (and keep pnpm from asking).
+  '@astryxdesign/cli': false
+  '@astryxdesign/core': false

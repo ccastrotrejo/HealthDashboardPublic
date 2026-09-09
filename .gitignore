@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+.vite/
+.vercel/
+*.tsbuildinfo
+# tsc emits .js + .d.ts for composite project config files
+vite.config.js
+vite.config.d.ts
+
+# Environment & secrets — NEVER commit these
+private/
+public/data/
+public-export/
+.env
+.env.*
+!.env.example
+*.local
+.tokens.json
+.tokens.local.json
+secrets.json
+*.pem
+*.key
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OAuth state files written by auth helper
+scripts/.auth-*.tmp
+
+# Coverage
+coverage/
+*.lcov
+
+# Test artifacts
+.cache/
+
+# Local Impeccable design-hook state
+.impeccable/hook.cache.json

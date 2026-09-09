@@ -1,0 +1,94 @@
+/* Opt-in surface treatment. Reuse the mode-aware palette without changing
+   semantic/chart colors, layout, or the classic appearance. */
+html[data-appearance='liquid-glass'] {
+  --glass-edge: color-mix(in srgb, var(--briefing-ink) 40%, transparent);
+  --glass-shadow:
+    inset 0 1px 0 var(--glass-edge),
+    inset 0 -1px 0 color-mix(in srgb, var(--color-ink-900) 5%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--color-ink-900) 9%, transparent),
+    0 10px 28px -20px color-mix(in srgb, var(--briefing-bg) 45%, transparent);
+  --glass-sheen: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--briefing-ink) 9%, transparent),
+    transparent 40%,
+    transparent 75%,
+    color-mix(in srgb, var(--color-cool-300) 5%, transparent)
+  );
+}
+
+html[data-appearance='liquid-glass'] body {
+  background-image:
+    radial-gradient(ellipse at 0% 5%, color-mix(in srgb, var(--color-sage-500) 18%, transparent), transparent 50%),
+    radial-gradient(ellipse at 100% 35%, color-mix(in srgb, var(--color-cool-500) 16%, transparent), transparent 55%),
+    radial-gradient(ellipse at 30% 100%, color-mix(in srgb, var(--color-amber-300) 10%, transparent), transparent 50%);
+  background-repeat: no-repeat;
+}
+
+/* Opaque by default: browsers without backdrop-filter still get polished,
+   readable surfaces. Blur is limited to top-level panels and navigation. */
+html[data-appearance='liquid-glass'] :is(.glass-panel, .glass-navigation, .glass-appearance-toggle) {
+  background-color: var(--color-ink-100);
+  background-image: var(--glass-sheen);
+  box-shadow: var(--glass-shadow);
+}
+
+html[data-appearance='liquid-glass'] .glass-panel {
+  border-radius: var(--radius-2xl);
+}
+
+html[data-appearance='liquid-glass'] .glass-navigation {
+  border-color: color-mix(in srgb, var(--color-ink-900) 12%, transparent);
+}
+
+html[data-appearance='liquid-glass'] .glass-appearance-toggle {
+  box-shadow: var(--glass-shadow), inset 0 0 0 1px var(--color-sage-ink);
+}
+
+/* The primary training decision remains smoked glass in both color modes:
+   its light semantic labels require a consistently dark backing. */
+html[data-appearance='liquid-glass'] .briefing-surface {
+  background-image: var(--glass-sheen);
+  border-color: color-mix(in srgb, var(--briefing-ink) 20%, transparent);
+  box-shadow: var(--glass-shadow);
+}
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  html[data-appearance='liquid-glass'] :is(.glass-panel, .glass-navigation) {
+    background-color: color-mix(in srgb, var(--color-ink-100) 88%, transparent);
+    -webkit-backdrop-filter: blur(14px) saturate(115%);
+    backdrop-filter: blur(14px) saturate(115%);
+  }
+
+  html[data-appearance='liquid-glass'] .briefing-surface {
+    background-color: color-mix(in srgb, var(--briefing-bg) 96%, transparent);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  html[data-appearance='liquid-glass'] .expandable-card:hover:not(:active) {
+    box-shadow: var(--glass-shadow), 0 0 0 1px var(--color-ink-500);
+  }
+}
+
+/* No ambient animation. Honor requests for solid, higher-contrast surfaces
+   as well as OS forced colors; the user's saved style remains unchanged. */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
+  html[data-appearance='liquid-glass'] body {
+    background-image: none;
+  }
+
+  html[data-appearance='liquid-glass'] :is(.glass-panel, .glass-navigation, .glass-appearance-toggle, .briefing-surface) {
+    background-color: var(--color-ink-100);
+    background-image: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: none;
+    border: 1px solid var(--color-ink-500);
+  }
+
+  html[data-appearance='liquid-glass'] .briefing-surface {
+    background-color: var(--briefing-bg);
+  }
+}

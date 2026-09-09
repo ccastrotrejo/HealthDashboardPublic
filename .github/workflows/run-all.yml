@@ -1,0 +1,174 @@
+name: Run all
+
+# Manual "run everything, in the right order" entry point.
+#
+# Dispatching the seven workflows by hand does not work. The six AI workflows
+# share `concurrency: ai-pipeline` with `cancel-in-progress: false`, and GitHub
+# keeps at most ONE pending run per group — every new dispatch cancels the one
+# already waiting, so firing all six back to back leaves two survivors and four
+# runs cancelled before they ever start. Ordering is not guaranteed either, and
+# every AI task is only worth running against data the sync has already pulled.
+#
+# Chaining the work as jobs inside a single run fixes both: `needs` puts sync
+# first and each task after the previous one, and nothing sits in a queue where
+# it could be evicted.
+#
+# The individual workflows keep their own schedules; this is the on-demand path.
+
+on:
+  workflow_dispatch:
+    inputs:
+      force_first_run:
+        description: 'Pull all-time history (ignores incremental cursor)'
+        required: false
+        default: false
+        type: boolean
+      for_date:
+        description: 'Backfill insights and today-debrief for a date (yyyy-mm-dd)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  copilot-requests: write
+
+# Serialises against the six standalone AI workflows.
+concurrency:
+  group: ai-pipeline
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: ${{ github.event.repository.private == true }}
+    name: Daily sync
+    # `daily-sync.yml` gates itself on this group at the workflow level, which
+    # covers its own runs but not this one — reached through `uses:`, its jobs
+    # are part of THIS run and there is no second run to queue. Claiming the
+    # group here restores the protection. Whoop rotates its refresh token on
+    # every call, so two overlapping syncs are the failure MAINTENANCE.md
+    # documents as the most common in the system.
+    concurrency:
+      group: daily-sync
+      cancel-in-progress: false
+    uses: ./.github/workflows/daily-sync.yml
+    with:
+      force_first_run: ${{ inputs.force_first_run }}
+    secrets:
+      WHOOP_CLIENT_ID: ${{ secrets.WHOOP_CLIENT_ID }}
+      WHOOP_CLIENT_SECRET: ${{ secrets.WHOOP_CLIENT_SECRET }}
+      WHOOP_REFRESH_TOKEN: ${{ secrets.WHOOP_REFRESH_TOKEN }}
+      STRAVA_CLIENT_ID: ${{ secrets.STRAVA_CLIENT_ID }}
+      STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
+      STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
+      GARMIN_TOKEN_JSON: ${{ secrets.GARMIN_TOKEN_JSON }}
+      GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
+      GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+      GH_PAT: ${{ secrets.GH_PAT }}
+      HEALTH_ESCALATION_WEBHOOK_URL: ${{ secrets.HEALTH_ESCALATION_WEBHOOK_URL }}
+
+  # Every task below hangs off the previous one purely to serialise the pushes,
+  # and every one also checks `!cancelled()` so a single strict-mode
+  # failure degrades to one missing artifact instead of skipping the rest of the
+  # chain. A failed job still fails the run.
+  insights:
+    name: AI insights
+    needs: sync
+    if: ${{ github.event.repository.private == true && !cancelled() }}
+    uses: ./.github/workflows/_ai-generate.yml
+    secrets:
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    with:
+      task: insights
+      commit_message: 'data: refresh AI insights'
+      for_date: ${{ inputs.for_date || '' }}
+
+  today-debrief:
+    name: AI today debrief
+    needs: insights
+    if: ${{ github.event.repository.private == true && !cancelled() }}
+    uses: ./.github/workflows/_ai-generate.yml
+    secrets:
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    with:
+      task: today-debrief
+      commit_message: 'data: refresh AI today debrief'
+      for_date: ${{ inputs.for_date || '' }}
+
+  coach:
+    name: AI coach
+    needs: today-debrief
+    if: ${{ github.event.repository.private == true && !cancelled() }}
+    uses: ./.github/workflows/_ai-generate.yml
+    secrets:
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    with:
+      task: coach
+      commit_message: 'data: refresh AI coach plan'
+
+  weekly-review:
+    name: AI weekly review
+    needs: coach
+    if: ${{ github.event.repository.private == true && !cancelled() }}
+    uses: ./.github/workflows/_ai-generate.yml
+    secrets:
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    with:
+      task: weekly-review
+      commit_message: 'data: refresh AI weekly review'
+
+  monthly-patterns:
+    name: AI monthly patterns
+    needs: weekly-review
+    if: ${{ github.event.repository.private == true && !cancelled() }}
+    uses: ./.github/workflows/_ai-generate.yml
+    secrets:
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    with:
+      task: monthly-patterns
+      commit_message: 'data: refresh AI monthly patterns'
+
+  # Same three-step chain as `ai-race.yml`, and non-strict for the same reason:
+  # no race inside the window is the normal case, not a failure.
+  race-week:
+    name: AI race week
+    needs: monthly-patterns
+    if: ${{ github.event.repository.private == true && !cancelled() }}
+    uses: ./.github/workflows/_ai-generate.yml
+    secrets:
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    with:
+      task: race-week
+      commit_message: 'data: refresh AI race-week plan'
+      strict: false
+
+  post-race:
+    name: AI post-race
+    needs: race-week
+    if: ${{ github.event.repository.private == true && !cancelled() }}
+    uses: ./.github/workflows/_ai-generate.yml
+    secrets:
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    with:
+      task: post-race
+      commit_message: 'data: refresh AI post-race analysis'
+      strict: false
+
+  calibration:
+    name: AI prediction calibration
+    needs: post-race
+    if: ${{ github.event.repository.private == true && !cancelled() }}
+    uses: ./.github/workflows/_ai-generate.yml
+    secrets:
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    with:
+      task: calibration
+      commit_message: 'data: refresh AI prediction calibration'
+      strict: false

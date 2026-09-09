@@ -1,0 +1,103 @@
+name: Sync public template
+
+on:
+  pull_request:
+    types: [closed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-template-sync
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Prepare audited public source
+    if: >-
+      github.event.repository.private == true &&
+      vars.PUBLIC_SYNC_ENABLED == 'true' &&
+      vars.PUBLIC_SYNC_REPOSITORY != '' &&
+      (
+        (github.event_name == 'pull_request' &&
+         github.event.pull_request.merged == true &&
+         github.event.pull_request.base.ref == github.event.repository.default_branch) ||
+        (github.event_name == 'workflow_dispatch' &&
+         github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout latest trusted default branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - uses: pnpm/action-setup@v6.0.10
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies without lifecycle scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Export and audit
+        run: |
+          pnpm export:public "$RUNNER_TEMP/public-source"
+          pnpm audit:public "$RUNNER_TEMP/public-source"
+
+      - name: Hand off only audited source files
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-source
+          path: ${{ runner.temp }}/public-source/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Update rolling public PR
+    needs: prepare
+    if: ${{ github.event.repository.private == true && vars.PUBLIC_SYNC_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: public-sync
+    permissions:
+      actions: read
+      contents: none
+    steps:
+      # Deliberately no checkout: this job never receives the private repository.
+      - uses: actions/download-artifact@v4
+        with:
+          name: public-source
+          path: ${{ github.workspace }}/public-source
+
+      - name: Create a separate execution copy
+        run: cp -R "$GITHUB_WORKSPACE/public-source" "$GITHUB_WORKSPACE/public-sync-runtime"
+
+      - uses: pnpm/action-setup@v6.0.10
+        with:
+          package_json_file: public-sync-runtime/package.json
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Install public-source dependencies without lifecycle scripts
+        working-directory: public-sync-runtime
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Update public snapshot and PR
+        working-directory: public-sync-runtime
+        env:
+          GH_TOKEN: ${{ secrets.PUBLIC_SYNC_TOKEN }}
+          PUBLIC_SYNC_REPOSITORY: ${{ vars.PUBLIC_SYNC_REPOSITORY }}
+          PRIVATE_SOURCE_REPOSITORY: ${{ github.repository }}
+          PUBLIC_SYNC_ENABLED: ${{ vars.PUBLIC_SYNC_ENABLED }}
+          PUBLIC_SOURCE_DIR: ${{ github.workspace }}/public-source
+        run: pnpm exec tsx scripts/sync-public.ts

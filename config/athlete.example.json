@@ -1,0 +1,116 @@
+{
+  "timezone": "UTC",
+  "PROGRAM_START": "2026-01-05",
+  "PROGRAM_LENGTH_WEEKS": 14,
+  "profile": {
+    "age": 35,
+    "weightLb": 165,
+    "heightInches": 68,
+    "location": "Example location",
+    "job": "Example occupation",
+    "nativeSports": ["cycling"],
+    "otherMovement": ["walking"]
+  },
+  "cyclingProfileDefaults": {
+    "ftpWatts": 200,
+    "ftpSource": "estimate",
+    "ftpTestedOn": null,
+    "weightKg": 75,
+    "lthr": null,
+    "maxHr": 185,
+    "restingHr": 60
+  },
+  "goals": [
+    {
+      "category": "primary",
+      "label": "Example training goal",
+      "detail": "Replace this fictional profile and example plan before using training guidance."
+    }
+  ],
+  "phases": [
+    {
+      "id": "base",
+      "label": "Example base block",
+      "weeks": [1, 2, 3, 4],
+      "load": "Set an individual target",
+      "rpe": "Easy",
+      "notes": "Illustrative structure, not an individualized prescription."
+    },
+    {
+      "id": "deload",
+      "label": "Example recovery weeks",
+      "weeks": [5, 10, 14],
+      "load": "Reduced",
+      "rpe": "Easy",
+      "notes": "Review recovery with a qualified professional."
+    },
+    {
+      "id": "build",
+      "label": "Example build block",
+      "weeks": [6, 7, 8, 9],
+      "load": "Set an individual target",
+      "rpe": "Individual",
+      "notes": "Replace with your own program."
+    },
+    {
+      "id": "peak",
+      "label": "Example final block",
+      "weeks": [11, 12, 13],
+      "load": "Set an individual target",
+      "rpe": "Individual",
+      "notes": "Replace with your own program."
+    }
+  ],
+  "weeklySchedule": [
+    {"day": "Mon", "session": "Example easy swim", "duration": "Optional", "calories": 2400, "carbs": 300, "sessionType": "swim"},
+    {"day": "Tue", "session": "Example strength session", "duration": "Individual", "calories": 2400, "carbs": 300, "sessionType": "lift"},
+    {"day": "Wed", "session": "Example mobility session", "duration": "Individual", "calories": 2400, "carbs": 300, "sessionType": "yoga"},
+    {"day": "Thu", "session": "Example strength session", "duration": "Individual", "calories": 2400, "carbs": 300, "sessionType": "lift"},
+    {"day": "Fri", "session": "Example bike session", "duration": "Individual", "calories": 2400, "carbs": 300, "sessionType": "bike"},
+    {"day": "Sat", "session": "Example endurance ride", "duration": "Individual", "calories": 2400, "carbs": 300, "sessionType": "bike"},
+    {"day": "Sun", "session": "Rest", "duration": "Rest", "calories": 2400, "carbs": 300, "sessionType": "rest"}
+  ],
+  "CRITICAL_RECOVERY_CUE": "Example only. Replace with guidance appropriate to your training and recovery.",
+  "lifts": [
+    {
+      "id": "A",
+      "day": "Tue",
+      "label": "Example strength session",
+      "focus": "Replace with your own exercises",
+      "exercises": [{"name": "Example exercise", "sets": 2, "reps": "Individual"}],
+      "core": {"label": "Example core work", "items": []}
+    }
+  ],
+  "cardioBike": [
+    {"week": 1, "tag": "Example", "workout": "Choose a suitable bike session.", "longRide": "Choose a suitable endurance ride."}
+  ],
+  "cardioRun": [],
+  "cardioSwim": [],
+  "paceGlossary": [
+    {"key": "FTP", "def": "Functional threshold power. Enter your own measured or estimated value."}
+  ],
+  "macros": {
+    "calories": 2400,
+    "protein": 150,
+    "fat": 67,
+    "carbs": 300,
+    "cycling": "Fictional example targets. Replace with individually appropriate nutrition guidance."
+  },
+  "dailyTiming": [],
+  "mealOptions": {"preWorkout": [], "breakfast": [], "office": [], "lunch": [], "dinner": []},
+  "mealPrepChecklist": [],
+  "hydrationRules": {
+    "daily": "Individual",
+    "preTraining": "Individual",
+    "duringTraining": "Individual",
+    "postTraining": "Individual",
+    "saturdayRides": "Individual",
+    "note": "Example only. Replace with your own hydration guidance."
+  },
+  "grocery": [],
+  "saunaRules": [],
+  "yogaRules": [],
+  "confirmedChoices": [],
+  "removedExercises": [],
+  "dayNotes": {}
+}

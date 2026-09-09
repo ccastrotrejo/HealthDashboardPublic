@@ -1,0 +1,169 @@
+name: Daily sync
+
+on:
+  schedule:
+    # Three runs per day in Eastern Time. GitHub Actions cron is UTC-only and
+    # best-effort on private free-tier repos — slots can be dropped without
+    # retry. When a fresh sync is urgent, use the manual `workflow_dispatch`
+    # trigger via `gh workflow run daily-sync.yml` or the Actions UI.
+    #
+    # During EDT (Mar–Nov, UTC-4):
+    #   14:00 UTC = 10:00 AM ET
+    #   17:00 UTC =  1:00 PM ET
+    #   23:00 UTC =  7:00 PM ET
+    # During EST (Nov–Mar, UTC-5) each fires one hour earlier in local time.
+    - cron: '0 14,17,23 * * *'
+  workflow_dispatch: # manual trigger from the Actions UI
+    inputs:
+      force_first_run:
+        description: 'Pull all-time history (ignores incremental cursor)'
+        required: false
+        default: 'false'
+        type: boolean
+  # Callable from `run-all.yml`, which chains sync → every AI task in one run so
+  # the analysis is always written against data the same run just pulled.
+  #
+  # Secrets are declared one by one rather than relying on `secrets: inherit` at
+  # the call site, matching `_ai-generate.yml`: the caller should have to name
+  # the vendor OAuth material and GH_PAT it is handing over.
+  workflow_call:
+    inputs:
+      force_first_run:
+        description: 'Pull all-time history (ignores incremental cursor)'
+        required: false
+        default: false
+        type: boolean
+    secrets:
+      WHOOP_CLIENT_ID:
+        required: false
+      WHOOP_CLIENT_SECRET:
+        required: false
+      WHOOP_REFRESH_TOKEN:
+        required: false
+      STRAVA_CLIENT_ID:
+        required: false
+      STRAVA_CLIENT_SECRET:
+        required: false
+      STRAVA_REFRESH_TOKEN:
+        required: false
+      GARMIN_TOKEN_JSON:
+        required: false
+      GARMIN_EMAIL:
+        required: false
+      GARMIN_PASSWORD:
+        required: false
+      GH_PAT:
+        required: false
+      HEALTH_ESCALATION_WEBHOOK_URL:
+        required: false
+  # NOTE: we deliberately do NOT run on push. Whoop rotates its refresh token
+  # on every refresh call, and chaining sync runs (push → Action #1 rotates,
+  # cron fires → Action #2 rotates again, then a manual trigger → Action #3
+  # races) is the most common cause of HTTP 400 token failures. Run manually
+  # from the Actions UI when you want fresh data; the cron handles daily.
+
+# Minimum-required permissions. Nothing else.
+permissions:
+  contents: write # to commit private/data/ back to a private repo only
+
+# Don't allow two syncs to race.
+#
+# This gates workflow RUNS, so it does not cover the `workflow_call` path — a
+# called workflow's jobs belong to the caller's run. `run-all.yml` claims this
+# same group at the job level to close that gap.
+concurrency:
+  group: daily-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: ${{ github.event.repository.private == true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # NOTE: We previously ran step-security/harden-runner@v2 here with an egress
+    # allowlist, but it requires a paid StepSecurity subscription to enforce on
+    # private repos. The action without enforcement only adds log noise. If we
+    # ever expand to write-scope OAuth or more sensitive data, revisit this.
+    # See SECURITY.md "Defenses implemented" → "GitHub Action" for the trade-off.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # Use the default GITHUB_TOKEN for the checkout. We'll push with it too.
+          persist-credentials: true
+          fetch-depth: 1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6.0.10
+        # Version comes from the `packageManager` field in package.json so all
+        # three environments (local, CI, Vercel) stay in lockstep. Setting
+        # `version:` here in addition would conflict (ERR_PNPM_BAD_PM_VERSION).
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Run sync
+        id: sync
+        env:
+          # Set to 1 when the user clicked "Pull all-time history" in the
+          # manual trigger UI. Forces sync.ts into first-run mode.
+          FORCE_FIRST_RUN: ${{ inputs.force_first_run == true && '1' || '' }}
+          # Vendor OAuth
+          WHOOP_CLIENT_ID: ${{ secrets.WHOOP_CLIENT_ID }}
+          WHOOP_CLIENT_SECRET: ${{ secrets.WHOOP_CLIENT_SECRET }}
+          WHOOP_REFRESH_TOKEN: ${{ secrets.WHOOP_REFRESH_TOKEN }}
+          STRAVA_CLIENT_ID: ${{ secrets.STRAVA_CLIENT_ID }}
+          STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
+          STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
+          # Garmin Connect — prefer the OAuth-token path. GARMIN_TOKEN_JSON is
+          # a base64-encoded {oauth1, oauth2} minted by `pnpm auth garmin`
+          # locally and pasted into Secrets. Avoids Garmin's SSO 429s, which
+          # fire when the same account logs in from multiple IPs/CI runs.
+          # Falls back to email+password if the token secret is empty.
+          GARMIN_TOKEN_JSON: ${{ secrets.GARMIN_TOKEN_JSON }}
+          GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
+          GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+          # PAT for rotating refresh tokens via GitHub REST API.
+          # Fine-grained, scoped to THIS repo only, with Actions: r/w permission.
+          GH_PAT: ${{ secrets.GH_PAT }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          # Anomaly-escalation webhook. scripts/lib/notify.ts no-ops when unset,
+          # so this is safe to leave unconfigured — but without it the pipeline's
+          # early-illness detection has nowhere to send anything and the signal
+          # only ever surfaces if you happen to open the dashboard.
+          HEALTH_ESCALATION_WEBHOOK_URL: ${{ secrets.HEALTH_ESCALATION_WEBHOOK_URL }}
+        run: pnpm sync
+
+      - name: Commit data
+        if: ${{ github.event.repository.private == true }}
+        run: |
+          set -euo pipefail
+          # Use the well-known github-actions[bot] identity so Vercel and other
+          # services recognise the commit author. A made-up username here would
+          # fail Vercel's "valid commit author email" deployment check.
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f -A private/data/
+          if ! git diff --cached --quiet -- private/data/; then
+            git commit -m "data: daily sync $(date -u +%Y-%m-%dT%H:%MZ) [skip ci]"
+            git push
+          else
+            echo "No data changes to commit."
+          fi
+
+      # A rotated refresh token that couldn't be written back to Secrets is
+      # unrecoverable: the vendor already killed the old one, so every later run
+      # fails auth until someone re-runs the OAuth flow. sync.ts keeps going so
+      # the data above still gets committed, then flags it here — this step is
+      # what turns the run red and sends the scheduled-workflow failure email.
+      - name: Fail on lost refresh token
+        if: steps.sync.outputs.token_rotation_failed == 'true'
+        run: |
+          echo "::error title=Refresh token lost::Could not persist the rotated refresh token for: ${{ steps.sync.outputs.token_rotation_vendors }}. Re-authorize locally with 'pnpm auth' and update the matching *_REFRESH_TOKEN secret."
+          exit 1

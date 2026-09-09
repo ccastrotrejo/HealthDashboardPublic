@@ -1,0 +1,80 @@
+[
+  {
+    "file": "scripts/auth.test.ts",
+    "rule": "credential-literal",
+    "sha256": "2035143e177eee30a3a6175df915db52ec529625e79587594c46bf9c28f4f6d6",
+    "reason": "Synthetic credential in independently reviewed isolated regression tests"
+  },
+  {
+    "file": "scripts/auth.test.ts",
+    "rule": "credential-literal",
+    "sha256": "0f2e9141bc2bdfcf2bb1df230141a04cd42a865ca318fbc3f4191f0f61ceac6d",
+    "reason": "Synthetic credential in independently reviewed isolated regression tests"
+  },
+  {
+    "file": "scripts/lib/api-clients.test.ts",
+    "rule": "credential-literal",
+    "sha256": "9aa294ee80cfed6c3eb7b44c67beb9ab90a02ce4889681e28d322ea2b58fc913",
+    "reason": "Synthetic credential in independently reviewed isolated regression tests"
+  },
+  {
+    "file": "scripts/lib/api-clients.test.ts",
+    "rule": "credential-literal",
+    "sha256": "940e11fb78b91bc728f9035c3deae0ba0db02b1d007bf6526ac553fa567b6336",
+    "reason": "Synthetic credential in independently reviewed isolated regression tests"
+  },
+  {
+    "file": "scripts/lib/api-clients.test.ts",
+    "rule": "credential-literal",
+    "sha256": "dcd2410adbdb73bf2b3271e8f5be983bbd1e72e80dfc15283634995f455c2177",
+    "reason": "Synthetic credential in independently reviewed isolated regression tests"
+  },
+  {
+    "file": "scripts/lib/api-clients.test.ts",
+    "rule": "credential-literal",
+    "sha256": "0f2e9141bc2bdfcf2bb1df230141a04cd42a865ca318fbc3f4191f0f61ceac6d",
+    "reason": "Synthetic credential in independently reviewed isolated regression tests"
+  },
+  {
+    "file": "scripts/lib/api-clients.test.ts",
+    "rule": "credential-literal",
+    "sha256": "2035143e177eee30a3a6175df915db52ec529625e79587594c46bf9c28f4f6d6",
+    "reason": "Synthetic credential in independently reviewed isolated regression tests"
+  },
+  {
+    "file": "scripts/lib/api-clients.test.ts",
+    "rule": "credential-literal",
+    "sha256": "f60ed833ca3e964a610da4de80d5699785da72e686d15c5615b8300de6a5d5a0",
+    "reason": "Synthetic credential in independently reviewed isolated regression tests"
+  },
+  {
+    "file": "scripts/lib/api-clients.test.ts",
+    "rule": "credential-literal",
+    "sha256": "0ad27c90157d6dec42fe9e43f6e8dc1923e10dd19bbdfb70bf916be0f02fba55",
+    "reason": "Synthetic credential in independently reviewed isolated regression tests"
+  },
+  {
+    "file": "scripts/lib/athlete-config.test.ts",
+    "rule": "credential-literal",
+    "sha256": "804a9b5c3a03f487e6ed80dc4fba7078898a28916c4c45a6b04f38e2db5a436c",
+    "reason": "Synthetic credential in independently reviewed isolated regression tests"
+  },
+  {
+    "file": "scripts/lib/public-export.test.ts",
+    "rule": "credential-literal",
+    "sha256": "bf1697334a1e42adb398cd0bb24109c5ff8b2b59c6c74e360b7b9c8ef306bf10",
+    "reason": "Synthetic credential in independently reviewed isolated regression tests"
+  },
+  {
+    "file": "scripts/lib/redaction.test.ts",
+    "rule": "provider-token",
+    "sha256": "0fd2901ab3f6dfbb0310113c639350fda4488d363f971cef6cb87ebb19d9d354",
+    "reason": "Synthetic credential in independently reviewed isolated regression tests"
+  },
+  {
+    "file": "scripts/lib/redaction.test.ts",
+    "rule": "provider-token",
+    "sha256": "1237334f81775dbee4f816cca9ffa4401958459bf9db371a357d0812edf6ab59",
+    "reason": "Synthetic credential in independently reviewed isolated regression tests"
+  }
+]

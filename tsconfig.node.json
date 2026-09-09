@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "./node_modules/.cache/health-dashboard-config",
+    "skipLibCheck": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "strict": true
+  },
+  "include": ["vite.config.ts", "scripts/lib/dashboard-assets.ts", "scripts/lib/athlete-config.ts", "scripts/lib/files.ts", "config/schema.ts"]
+}

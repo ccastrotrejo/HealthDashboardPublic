@@ -1,0 +1,28 @@
+name: AI monthly patterns
+
+# Multi-week pattern detection.
+#
+# 14:30 UTC on the 1st = 10:30 AM ET (EDT), after the day's first sync.
+on:
+  schedule:
+    - cron: '30 14 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  copilot-requests: write
+
+concurrency:
+  group: ai-pipeline
+  cancel-in-progress: false
+
+jobs:
+  patterns:
+    if: ${{ github.event.repository.private == true }}
+    uses: ./.github/workflows/_ai-generate.yml
+    secrets:
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    with:
+      task: monthly-patterns
+      commit_message: 'data: refresh AI monthly patterns'

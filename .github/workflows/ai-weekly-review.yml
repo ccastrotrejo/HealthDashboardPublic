@@ -1,0 +1,31 @@
+name: AI weekly review
+
+# Retrospective on the week that just ended.
+#
+# 23:30 UTC Sunday = 7:30 PM ET (EDT). Moved later than the old 22:00 slot so the
+# week being reviewed is actually complete: at 22:00 the freshest snapshot was
+# from 17:00 UTC, which made Sunday afternoon and evening structurally invisible
+# to a review whose entire job is judging the week.
+on:
+  schedule:
+    - cron: '30 23 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  copilot-requests: write
+
+concurrency:
+  group: ai-pipeline
+  cancel-in-progress: false
+
+jobs:
+  review:
+    if: ${{ github.event.repository.private == true }}
+    uses: ./.github/workflows/_ai-generate.yml
+    secrets:
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    with:
+      task: weekly-review
+      commit_message: 'data: refresh AI weekly review'

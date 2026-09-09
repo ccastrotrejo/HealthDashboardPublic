@@ -1,0 +1,40 @@
+name: AI insights
+
+# Morning recap of yesterday.
+#
+# 14:30 UTC = 10:30 AM ET (EDT) / 9:30 AM ET (EST).
+#
+# This deliberately sits AFTER the 14:00 daily sync. The previous 11:30 UTC slot
+# ran two and a half hours BEFORE the day's first sync, so the "morning recap"
+# was always generated from the previous evening's snapshot and never saw last
+# night's sleep or this morning's recovery score. The reusable workflow also
+# refreshes the snapshot itself, so the ordering is belt-and-braces.
+on:
+  schedule:
+    - cron: '30 14 * * *'
+  workflow_dispatch:
+    inputs:
+      for_date:
+        description: 'Backfill a specific date (yyyy-mm-dd)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  copilot-requests: write
+
+concurrency:
+  group: ai-pipeline
+  cancel-in-progress: false
+
+jobs:
+  insights:
+    if: ${{ github.event.repository.private == true }}
+    uses: ./.github/workflows/_ai-generate.yml
+    secrets:
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    with:
+      task: insights
+      commit_message: 'data: refresh AI insights'
+      for_date: ${{ inputs.for_date || '' }}

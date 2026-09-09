@@ -1,0 +1,30 @@
+name: AI coach
+
+# Weekly plan for the week ahead.
+#
+# 15:00 UTC Sunday = 11:00 AM ET (EDT). Moved off 14:00, which collided with the
+# daily sync minute-for-minute in a different concurrency group — the coach could
+# read a pre-sync snapshot and then race the sync on push.
+on:
+  schedule:
+    - cron: '0 15 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  copilot-requests: write
+
+concurrency:
+  group: ai-pipeline
+  cancel-in-progress: false
+
+jobs:
+  coach:
+    if: ${{ github.event.repository.private == true }}
+    uses: ./.github/workflows/_ai-generate.yml
+    secrets:
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    with:
+      task: coach
+      commit_message: 'data: refresh AI coach plan'

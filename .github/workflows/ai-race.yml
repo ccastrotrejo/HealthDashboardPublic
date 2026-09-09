@@ -1,0 +1,58 @@
+name: AI race
+
+# Race-week taper plan, post-race analysis, and prediction calibration.
+#
+# All three are cheap no-ops most of the year: race-week only writes when a race
+# is inside its window, post-race only when a new result has been recorded and
+# not yet analysed, and calibration is a single short call.
+#
+# 15:30 UTC daily = 11:30 AM ET (EDT), after the day's first sync.
+on:
+  schedule:
+    - cron: '30 15 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  copilot-requests: write
+
+concurrency:
+  group: ai-pipeline
+  cancel-in-progress: false
+
+jobs:
+  race-week:
+    if: ${{ github.event.repository.private == true }}
+    uses: ./.github/workflows/_ai-generate.yml
+    secrets:
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    with:
+      task: race-week
+      commit_message: 'data: refresh AI race-week plan'
+      # No race in the window is the normal case and must not fail the run.
+      strict: false
+
+  post-race:
+    if: ${{ github.event.repository.private == true }}
+    needs: race-week
+    uses: ./.github/workflows/_ai-generate.yml
+    secrets:
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    with:
+      task: post-race
+      commit_message: 'data: refresh AI post-race analysis'
+      strict: false
+
+  calibration:
+    if: ${{ github.event.repository.private == true }}
+    needs: post-race
+    uses: ./.github/workflows/_ai-generate.yml
+    secrets:
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    with:
+      task: calibration
+      commit_message: 'data: refresh AI prediction calibration'
+      strict: false

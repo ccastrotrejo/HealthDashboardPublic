@@ -1,0 +1,57 @@
+<!doctype html>
+<!--
+  THESIS: One resolved training decision leads; equal-weight dashboard cards do not.
+  OWN-WORLD: A coach's briefing sheet with cold paper, decisive ink, compact rules, and measured signal color.
+  STORY: Read today's prescription, understand the adjustment, then inspect evidence by time horizon.
+  FIRST VIEWPORT: Compact masthead and navigation above a full-width prescription/recovery briefing.
+  FORM: Editorial athlete cockpit, task-led Operate surface, committed from the approved critique direction.
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta id="theme-color-meta" name="theme-color" content="#eef1ee" />
+    <title>Daily Briefing · Health Dashboard</title>
+    <script>
+      /* Pre-paint theme sync — runs before the body renders so the correct
+         light/dark branch is active on first paint (no flash). Mirrors the
+         logic in src/hooks/useThemeMode.tsx and Astryx's <Theme> provider:
+         an explicit 'light'/'dark' choice sets data-theme; 'system' (or no
+         choice) leaves it unset so color-scheme follows the OS. Keep the
+         storage keys ('health-theme' / 'health-appearance') in sync with
+         useThemeMode.tsx, and the two body colors below in sync with `surface.body` in
+         src/lib/palette.ts. */
+      (function () {
+        try {
+          const mode = localStorage.getItem('health-theme');
+          const root = document.documentElement;
+          if (localStorage.getItem('health-appearance') === 'liquid-glass') {
+            root.setAttribute('data-appearance', 'liquid-glass');
+          }
+          if (mode === 'light' || mode === 'dark') {
+            root.setAttribute('data-theme', mode);
+            root.style.colorScheme = mode;
+          } else {
+            root.style.colorScheme = 'light dark';
+          }
+          const dark =
+            mode === 'dark' ||
+            (mode !== 'light' &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches);
+          const background = dark ? '#101412' : '#eef1ee';
+          root.style.backgroundColor = background;
+          document.getElementById('theme-color-meta').setAttribute('content', background);
+        } catch (e) {
+          /* localStorage blocked — fall back to CSS defaults. */
+        }
+      })();
+    </script>
+  </head>
+  <body class="bg-ink-50 text-ink-900 font-sans antialiased">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

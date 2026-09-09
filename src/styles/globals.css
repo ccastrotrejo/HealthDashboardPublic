@@ -1,0 +1,357 @@
+/* -------------------------------------------------------------------------
+ * Tailwind v4 + Astryx design system
+ *
+ * Layer order is load-bearing: it maps to the cascade so Tailwind's reset
+ * doesn't clobber Astryx's, and Tailwind utilities win over Astryx component
+ * base styles. Do not reorder these imports.
+ * ---------------------------------------------------------------------- */
+@layer reset, theme, base, astryx-base, astryx-theme, components, utilities;
+
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/preflight.css' layer(base);
+@import '@astryxdesign/core/reset.css';
+@import '@astryxdesign/core/astryx.css';
+@import '@astryxdesign/core/tailwind-theme.css';
+@import 'tailwindcss/utilities.css' layer(utilities);
+
+/* -------------------------------------------------------------------------
+ * Dark-mode variant.
+ *
+ * The app drives dark mode two ways, both funnelled through `color-scheme`:
+ *   · Explicit choice → <html data-theme="dark"> (set by Astryx <Theme>)
+ *   · System choice   → no data-theme, OS `prefers-color-scheme: dark`
+ *
+ * Semantic colors adapt automatically via `light-dark()` tokens, so `dark:`
+ * utilities are rarely needed — but when they are, this variant matches the
+ * exact same conditions so hand-written dark styles stay consistent with the
+ * token-driven ones (instead of Tailwind's default prefers-color-scheme-only
+ * behaviour, which would miss an explicit dark choice on a light OS).
+ * ---------------------------------------------------------------------- */
+@custom-variant dark {
+  &:where([data-theme='dark'], [data-theme='dark'] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(html:not([data-theme]), html:not([data-theme]) *) {
+      @slot;
+    }
+  }
+}
+
+/* -------------------------------------------------------------------------
+ * Project theme extensions.
+ *
+ * These make the brand palette available as Tailwind utilities (bg-sage-500,
+ * text-cool-ink, font-display, ease-out-strong, …). This block loads after the
+ * Astryx Tailwind bridge, so it also asserts the brand fonts and keeps the
+ * radius scale monotonic (the bridge maps rounded-xl to the large "page"
+ * radius).
+ *
+ * SOURCE OF TRUTH: src/lib/palette.ts. CSS can't import TS, so these values
+ * are necessarily restated here — they are the only duplicate, and they must
+ * be kept in step with that file. Nothing else in the app should carry a
+ * literal hex; components read colors either as these utilities or through
+ * `useBrandPalette()`.
+ * ---------------------------------------------------------------------- */
+@theme {
+  /* Brand palette. The ramp encodes a contrast contract:
+       -surface  tint background — mode-aware, pairs with -ink
+       -ink      TEXT tone       — mode-aware (-700 light, -300 dark), always AA
+       -500      fill / stroke only — never legible as small text on light
+       -300/-700 the raw ends of the ramp, for when a fixed value is needed
+
+     Every -ink on -surface pairing measures 5.0–6.6:1 in both modes. Use
+     -ink for any hue-carrying text, -500 only for bars, gauges and rings. */
+  --color-sage-surface: light-dark(#eaf4ef, #1d3027);
+  --color-sage-ink: light-dark(#205f43, #78b092);
+  --color-sage-300: #78b092;
+  --color-sage-500: #3f8060;
+  --color-sage-700: #205f43;
+
+  --color-amber-surface: light-dark(#fbf1d9, #352d1e);
+  --color-amber-ink: light-dark(#7a5316, #e2b75c);
+  --color-amber-300: #e2b75c;
+  --color-amber-500: #bf8730;
+  --color-amber-700: #7a5316;
+
+  --color-terra-surface: light-dark(#faeae5, #38241f);
+  --color-terra-ink: light-dark(#883522, #e58e78);
+  --color-terra-300: #e58e78;
+  --color-terra-500: #c6583f;
+  --color-terra-700: #883522;
+
+  --color-dusty-surface: light-dark(#f2edf4, #302633);
+  --color-dusty-ink: light-dark(#654c6d, #b79ac0);
+  --color-dusty-300: #b79ac0;
+  --color-dusty-500: #8e6f99;
+  --color-dusty-700: #654c6d;
+
+  --color-cool-surface: light-dark(#eaf0f8, #202d3a);
+  --color-cool-ink: light-dark(#2c527e, #86a9d2);
+  --color-cool-300: #86a9d2;
+  --color-cool-500: #4f79ae;
+  --color-cool-700: #2c527e;
+
+  /* Neutral "ink" ramp — the load-bearing scale for the whole UI. Expressed
+     as light-dark() so every `text-ink-900`, `bg-ink-50`, `border-ink-200`,
+     etc. flips automatically when the active color-scheme changes.
+
+     ink-500 is the secondary-text step and is the QUIETEST tone allowed to
+     carry words: 6.6:1 on the light card, 6.4:1 on the dark one. Lower-alpha
+     ink (text-ink-900/50 and friends) used to be the house style for captions
+     and measured as low as 2.5:1 — it is gone. Anything dimmer than ink-500
+     is decoration (rules, dots, tracks) or a disabled state, not text.
+
+     The three text steps, in order of loudness:
+       ink-900  primary        16.2:1 light · 15.9:1 dark
+       ink-700  secondary      10.4:1 light ·  9.8:1 dark
+       ink-500  tertiary        6.6:1 light ·  6.4:1 dark */
+  --color-ink-50: light-dark(#eef1ee, #101412);
+  --color-ink-100: light-dark(#fbfcfa, #171c19);
+  --color-ink-200: light-dark(#d9dfdb, #2a332f);
+  --color-ink-500: light-dark(#4b5a55, #a7b2ad);
+  --color-ink-700: light-dark(#314039, #c6cfca);
+  --color-ink-900: light-dark(#17201d, #f3f6f3);
+
+  /* Self-hosted Archivo for UI; monospace only for comparable measurements. */
+  --font-display: 'Archivo Variable', system-ui, sans-serif;
+  --font-sans: 'Archivo Variable', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+
+  /* Keep the radius scale monotonic (bridge maps rounded-xl -> page radius) */
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+  --radius-3xl: 1.5rem;
+
+  --text-caption: 0.75rem;
+
+  /* Stronger ease-out than the built-in curve — Emil's "strong out". */
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@utility text-caption {
+  font-size: var(--text-caption);
+  line-height: 1.125rem;
+}
+
+/* -------------------------------------------------------------------------
+ * Elevation.
+ *
+ * Surfaces that carry depth — cards, panels, the strip — use a layered
+ * box-shadow rather than a solid 1px border. The first layer is the border
+ * ring, the second adds lift, the third is ambient depth. Because every layer
+ * is transparent it adapts to whatever sits behind it, which a solid border
+ * colour can't. Dark mode collapses to a single light ring; layered depth
+ * shadows are invisible on a dark surface.
+ *
+ * This does NOT apply to dividers (`border-b`, `divide-y`, section rules).
+ * Those are separators, not elevation, and stay as borders.
+ * ---------------------------------------------------------------------- */
+:root {
+  --briefing-bg: #14201c;
+  --briefing-ink: #f3f6f3;
+  --briefing-secondary: #bac7c1;
+  --briefing-rule: rgb(255 255 255 / 0.13);
+  --shadow-border:
+    0 0 0 1px rgb(23 32 29 / 0.07),
+    0 1px 2px -1px rgb(23 32 29 / 0.07),
+    0 8px 24px -20px rgb(23 32 29 / 0.28);
+  --shadow-border-hover:
+    0 0 0 1px rgb(23 32 29 / 0.13),
+    0 2px 4px -2px rgb(23 32 29 / 0.12),
+    0 14px 34px -24px rgb(23 32 29 / 0.35);
+}
+
+html[data-theme='dark'] {
+  --shadow-border: 0 0 0 1px rgb(255 255 255 / 0.08);
+  --shadow-border-hover: 0 0 0 1px rgb(255 255 255 / 0.13);
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) {
+    --shadow-border: 0 0 0 1px rgb(255 255 255 / 0.08);
+    --shadow-border-hover: 0 0 0 1px rgb(255 255 255 / 0.13);
+  }
+}
+
+@utility shadow-border {
+  box-shadow: var(--shadow-border);
+}
+@utility shadow-border-hover {
+  box-shadow: var(--shadow-border-hover);
+}
+
+/* -------------------------------------------------------------------------
+ * Ink ramp — honour the explicit theme choice.
+ *
+ * The ink tokens above use light-dark(), which the build (LightningCSS)
+ * compiles to a `prefers-color-scheme` polyfill. On its own that makes the ink
+ * ramp track the OS setting only — NOT the in-app Light/Dark toggle, which
+ * Astryx applies as `data-theme` on <html>. So picking "Dark" on a light OS
+ * (or vice-versa) left every `bg-ink-*` / `text-ink-*` utility on the wrong
+ * values (e.g. white StatGrid tiles in dark mode).
+ *
+ * Re-assert the ramp per explicit choice with a selector that outweighs the
+ * `:root` definition, so the tokens flip with the toggle exactly like Astryx's
+ * own surfaces. The "System" option sets no `data-theme`, so it keeps
+ * following the OS through the light-dark() tokens above. Values mirror the
+ * light/dark branches declared in @theme.
+ * ---------------------------------------------------------------------- */
+html[data-theme='light'] {
+  --color-ink-50: #eef1ee;
+  --color-ink-100: #fbfcfa;
+  --color-ink-200: #d9dfdb;
+  --color-ink-500: #4b5a55;
+  --color-ink-700: #314039;
+  --color-ink-900: #17201d;
+}
+html[data-theme='dark'] {
+  --color-ink-50: #101412;
+  --color-ink-100: #171c19;
+  --color-ink-200: #2a332f;
+  --color-ink-500: #a7b2ad;
+  --color-ink-700: #c6cfca;
+  --color-ink-900: #f3f6f3;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Root overflow guard. `clip` rather than `hidden` so it can't silently
+       create a scroll container and break position: sticky descendants. */
+    overflow-x: clip;
+    scroll-padding-top: 5rem;
+  }
+  body {
+    /* dvh, not vh — mobile browser chrome collapsing mid-scroll must not
+       change the layout height. */
+    min-height: 100dvh;
+    overflow-x: clip;
+    font-family: var(--font-sans);
+    font-feature-settings: 'ss01' 1, 'cv02' 1, 'cv03' 1;
+    letter-spacing: -0.008em;
+    /* Avoid single-word orphans on the last line of any wrapping copy. */
+    text-wrap: pretty;
+  }
+  /* Display face on headings, with tighter and more even ragging — even
+     single-line headings cost nothing and the moment a title wraps it lands
+     well. Roman only; the display face is never italicised. */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    font-style: normal;
+    text-wrap: balance;
+  }
+  :where(h1, h2, h3, h4, h5, h6, [role='tabpanel']) {
+    scroll-margin-top: 5rem;
+  }
+  :where(a, button, summary) {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* Long metric names and race titles must break rather than push the page
+     sideways on a 320px screen. */
+  h1, h2 {
+    overflow-wrap: anywhere;
+    min-width: 0;
+  }
+
+  /* One consistent, theme-aware keyboard focus ring for every interactive
+     element that doesn't ship its own. Uses the accent token so it stays
+     legible in both modes, and only shows for keyboard users (:focus-visible).
+     Astryx components that render their own focus ring keep it. Never
+     transitioned — a focus ring must appear instantly. */
+  :where(a, button, summary, [role='tab'], [role='button'], [tabindex]):focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+@layer components {
+  .briefing-surface {
+    color: var(--briefing-ink);
+    background: var(--briefing-bg);
+    border: 1px solid rgb(255 255 255 / 0.08);
+    box-shadow:
+      0 1px 2px rgb(0 0 0 / 0.14),
+      0 24px 50px -34px rgb(5 13 10 / 0.72);
+  }
+
+  .briefing-secondary {
+    color: var(--briefing-secondary);
+  }
+
+  .briefing-rule {
+    border-color: var(--briefing-rule);
+  }
+
+  .editorial-card {
+    border-radius: 0.875rem;
+  }
+
+  .expandable-card {
+    transition: transform 150ms var(--ease-out-strong);
+  }
+
+  .pressable-feedback {
+    transition: transform 150ms var(--ease-out-strong);
+  }
+
+  .pressable-feedback:not(:focus-visible):active {
+    transform: scale(0.97);
+  }
+
+  .expandable-card:active {
+    transform: scale(0.97);
+  }
+
+  .expandable-card:has(:focus-visible):active {
+    transform: none;
+  }
+
+  .disclosure-trigger:focus-visible .disclosure-chevron {
+    transition-duration: 0ms;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .expandable-card:hover:not(:active) {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-border-hover);
+  }
+}
+
+/* -------------------------------------------------------------------------
+ * Motion.
+ *
+ * The dashboard has almost none, deliberately. It is opened to read a number,
+ * so content is never withheld pending an animation: there is no scroll-reveal
+ * layer, no entrance cascade, and no ambient background motion. What remains
+ * is state feedback on the things you can actually press, which lives on the
+ * components themselves.
+ *
+ * Motion sickness / vestibular safety: kill transforms, but keep opacity
+ * transitions so things still feel responsive.
+ * ---------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .expandable-card,
+  .pressable-feedback {
+    transform: none !important;
+    transition: none !important;
+  }
+
+  .disclosure-chevron {
+    transition: none !important;
+  }
+}

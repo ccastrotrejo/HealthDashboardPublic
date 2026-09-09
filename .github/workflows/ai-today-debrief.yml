@@ -1,0 +1,35 @@
+name: AI today debrief
+
+# End-of-day debrief.
+#
+# 00:05 UTC = 8:05 PM ET (EDT) the previous calendar day. The script resolves
+# "today" in the configured athlete timezone, so the UTC rollover is handled.
+on:
+  schedule:
+    - cron: '5 0 * * *'
+  workflow_dispatch:
+    inputs:
+      for_date:
+        description: 'Backfill a specific date (yyyy-mm-dd)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  copilot-requests: write
+
+concurrency:
+  group: ai-pipeline
+  cancel-in-progress: false
+
+jobs:
+  debrief:
+    if: ${{ github.event.repository.private == true }}
+    uses: ./.github/workflows/_ai-generate.yml
+    secrets:
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    with:
+      task: today-debrief
+      commit_message: 'data: refresh AI today debrief'
+      for_date: ${{ inputs.for_date || '' }}

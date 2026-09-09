@@ -1,0 +1,75 @@
+# Weekly Dependabot scans for npm + GitHub Actions deps.
+# Keeps the surface area small enough to review without becoming noise.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '10:00'
+      timezone: America/New_York
+    open-pull-requests-limit: 5
+    # Group related deps into a single PR each so the inbox doesn't explode.
+    # Majors are excluded from groups so each breaking bump gets its own PR.
+    groups:
+      react:
+        patterns:
+          - 'react'
+          - 'react-dom'
+          - '@types/react'
+          - '@types/react-dom'
+        update-types:
+          - 'minor'
+          - 'patch'
+      vite-stack:
+        patterns:
+          - 'vite'
+          - '@vitejs/*'
+          - 'tsx'
+        update-types:
+          - 'minor'
+          - 'patch'
+      tailwind:
+        patterns:
+          - 'tailwindcss'
+          - 'postcss'
+          - 'autoprefixer'
+        update-types:
+          - 'minor'
+          - 'patch'
+      types:
+        patterns:
+          - '@types/*'
+        exclude-patterns:
+          - '@types/react'
+          - '@types/react-dom'
+        update-types:
+          - 'minor'
+          - 'patch'
+      dev-dependencies:
+        dependency-type: development
+        update-types:
+          - 'minor'
+          - 'patch'
+    labels:
+      - dependencies
+      - npm
+    commit-message:
+      prefix: 'deps'
+      include: scope
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '10:00'
+      timezone: America/New_York
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - github-actions
+    commit-message:
+      prefix: 'ci'
+      include: scope
