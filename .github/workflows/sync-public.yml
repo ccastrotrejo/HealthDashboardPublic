@@ -52,7 +52,7 @@ jobs:
           pnpm audit:public "$RUNNER_TEMP/public-source"
 
       - name: Hand off only audited source files
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: public-source
           path: ${{ runner.temp }}/public-source/
