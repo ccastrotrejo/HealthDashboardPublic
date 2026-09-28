@@ -37,7 +37,7 @@
     "d3-shape": "3.2.0",
     "d3-time": "3.1.0",
     "garmin-connect": "^1.6.2",
-    "lucide-react": "^1.35.0",
+    "lucide-react": "^1.48.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "recharts": "^3.10.1",
