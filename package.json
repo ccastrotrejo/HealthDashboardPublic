@@ -43,7 +43,7 @@
     "recharts": "^3.10.1",
     "three": "0.185.1",
     "tweetnacl-sealedbox-js": "^1.2.0",
-    "zod": "^4.4.3"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@astryxdesign/cli": "^0.5.0",
