@@ -41,7 +41,7 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "recharts": "^3.10.1",
-    "three": "0.185.1",
+    "three": "0.186.1",
     "tweetnacl-sealedbox-js": "^1.2.0",
     "zod": "^4.4.3"
   },
